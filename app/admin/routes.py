@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.extras # Thêm thư viện này
 import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
-from db import get_db_connection # Import từ file db.py ở gốc
+from app.db import get_db_connection
 
 bp = Blueprint('admin', __name__, url_prefix='/admin', template_folder='templates')
 
