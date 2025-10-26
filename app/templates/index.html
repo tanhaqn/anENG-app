@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lộ Trình Học 1000+ Từ Vựng Tiếng Anh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* Cấu hình màu sắc cho chế độ tối và sáng */
+        :root {
+            --bg-light: #f0f4f8;
+            --bg-dark: #0f172a;
+            --text-light: #1e293b;
+            --text-dark: #e2e8f0;
+            --card-bg-light: #ffffff;
+            --card-bg-dark: #1e293b;
+            --sidebar-bg-light: #ffffff;
+            --sidebar-bg-dark: #1e293b;
+        }
+
+        html.dark {
+            color-scheme: dark;
+        }
+
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-light);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        html.dark body {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        .card-container {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        
+        /* FIX: Remove fixed height, let Chart.js handle it */
+        .chart-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .favorite-btn.favorited {
+            color: #facc15;
+        }
+
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .quiz-option.correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+        }
+
+        html.dark .quiz-option.correct {
+            background-color: #166534;
+            border-color: #22c55e;
+        }
+
+        .quiz-option.incorrect {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        html.dark .quiz-option.incorrect {
+            background-color: #991b1b;
+            border-color: #ef4444;
+        }
+
+        .badge.locked {
+            filter: grayscale(100%);
+            opacity: 0.5;
+        }
+
+        #scroll-to-top-btn {
+            transition: opacity 0.3s, transform 0.3s;
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+
+        #scroll-to-top-btn.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        #translation-popup {
+            position: absolute;
+            z-index: 1000;
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            font-size: 14px;
+            line-height: 1.5;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+            pointer-events: none;
+        }
+        
+        html.dark #translation-popup {
+             background-color: #2d3748;
+             color: #e2e8f0;
+             border-color: #4a5568;
+        }
+
+        #translation-popup.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+    <div id="app-container" class="relative flex min-h-screen">
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+
+        <aside id="sidebar"
+            class="sidebar fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-slate-800 shadow-lg p-4 overflow-y-auto transform -translate-x-full md:sticky md:top-0 md:h-screen md:transform-none">
+            <nav id="topic-navigation"></nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm p-4">
+                <div class="flex items-center justify-between max-w-7xl mx-auto">
+                    <button id="menu-toggle"
+                        class="md:hidden p-2 rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16m-7 6h7"></path>
+                        </svg>
+                    </button>
+                    <h1 class="text-lg md:text-2xl font-bold text-slate-800 dark:text-slate-100 truncate hidden md:block"
+                        id="current-topic-title"></h1>
+
+                    <div class="flex items-center space-x-2 md:space-x-3">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <button id="listening-quiz-btn" title="Trắc nghiệm Nghe"
+                                class="quiz-type-btn flex items-center space-x-2 px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition"><span>🎧</span>
+                                <span class="text-sm font-semibold">Nghe</span></button>
+                            <button id="spelling-quiz-btn" title="Luyện nghe & Viết"
+                                class="quiz-type-btn flex items-center space-x-2 px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition"><span>✍️</span>
+                                <span class="text-sm font-semibold">Viết</span></button>
+                            <button id="quiz-btn" title="Trắc nghiệm Nghĩa"
+                                class="quiz-type-btn flex items-center space-x-2 px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition"><span>❓</span>
+                                <span class="text-sm font-semibold">Nghĩa</span></button>
+                            <button id="matching-quiz-btn" title="Nối từ"
+                                class="quiz-type-btn flex items-center space-x-2 px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                                <span>🎨</span>
+                                <span class="text-sm font-semibold">Nối từ</span>
+                            </button>
+                            <button id="fill-blank-quiz-btn" title="Điền từ"
+                                class="quiz-type-btn flex items-center space-x-2 px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                                <span>📝</span>
+                                <span class="text-sm font-semibold">Điền từ</span>
+                            </button>
+                        </div>
+
+                        <div class="relative md:hidden">
+                            <button id="mobile-quiz-toggle"
+                                class="quiz-type-btn px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">Luyện
+                                tập</button>
+                            <div id="mobile-quiz-dropdown"
+                                class="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg py-1 z-20 hidden">
+                                <a href="#" id="mobile-listening-quiz-btn"
+                                    class="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">🎧
+                                    Trắc nghiệm Nghe</a>
+                                <a href="#" id="mobile-spelling-quiz-btn"
+                                    class="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">✍️
+                                    Luyện nghe & Viết</a>
+                                <a href="#" id="mobile-quiz-btn"
+                                    class="flex items-center px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">❓
+                                    Trắc nghiệm Nghĩa</a>
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <input type="search" id="search-box" placeholder="Tìm..."
+                                class="pl-8 pr-2 py-2 w-24 md:w-40 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-full focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium hidden sm:inline">Flashcard</span>
+                            <label for="view-toggle" class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="view-toggle" class="sr-only peer">
+                                <div
+                                    class="w-11 h-6 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white dark:after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                </div>
+                            </label>
+                        </div>
+
+                        <button id="theme-toggle" type="button"
+                            class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-200 dark:focus:ring-slate-700 rounded-lg text-sm p-2.5">
+                            <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor"
+                                viewBox="0 0 20 20">
+                                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                            </svg>
+                            <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor"
+                                viewBox="0 0 20 20">
+                                <path
+                                    d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 7.072l.707-.707a1 1 0 10-1.414-1.414l-.707.707a1 1 0 001.414 1.414zM3 11a1 1 0 100-2H2a1 1 0 100 2h1z"
+                                    fill-rule="evenodd" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+
+                        <div class="relative ml-2">
+                            <button id="user-menu-toggle"
+                                class="p-1.5 rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </button>
+                            <div id="user-menu-dropdown"
+                                class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg py-1 z-20 hidden">
+                                <a href="/admin"
+                                    class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Trang
+                                    Admin</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+                <div class="max-w-7xl mx-auto">
+                    <section id="vocabulary-section">
+                        <div id="vocabulary-container" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        </div>
+                        <div id="no-results" class="text-center py-16 text-slate-500 hidden">
+                            <p class="text-2xl mb-2">🚫</p>
+                            <p class="font-semibold">Không tìm thấy kết quả</p>
+                            <p class="text-sm">Vui lòng thử một từ khóa khác.</p>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- All Modals -->
+    <div id="quiz-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform">
+            <div id="quiz-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Trắc nghiệm Nghĩa</h2><button id="close-quiz-btn" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+                </div>
+                <p id="quiz-question" class="text-lg text-center font-semibold text-slate-800 dark:text-slate-100 my-4"></p>
+                <div id="quiz-options" class="grid grid-cols-1 gap-3 mt-6"></div>
+                <div class="mt-6 flex justify-between items-center">
+                    <p id="quiz-progress" class="text-sm font-medium text-slate-500"></p><button id="next-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition hidden">Tiếp theo</button>
+                </div>
+            </div>
+            <div id="quiz-results" class="hidden text-center">
+                <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-4">Kết quả</h2>
+                <p class="text-5xl font-bold text-slate-700 dark:text-slate-200 mb-2" id="quiz-score"></p>
+                <p class="text-slate-600 dark:text-slate-300 mb-6" id="quiz-feedback"></p>
+                <div class="flex justify-center items-center gap-4">
+                    <button id="close-results-btn" class="px-6 py-2 bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-200 rounded-full font-semibold hover:bg-slate-300 dark:hover:bg-slate-500 transition">Đóng</button>
+                    <button id="restart-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition">Làm lại</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="spelling-quiz-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400">✍️ Luyện nghe & Viết</h2>
+                <button id="close-spelling-quiz-btn" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="text-center">
+                <p id="spelling-quiz-meaning" class="text-slate-600 dark:text-slate-400 mb-4"></p>
+                <button id="play-spelling-quiz-sound-btn" class="mb-4 text-5xl">🔊</button>
+                <input type="text" id="spelling-quiz-input" class="text-center text-xl font-semibold w-full p-2 border-2 border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <div id="spelling-quiz-feedback" class="mt-4 h-6"></div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="check-spelling-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition">Kiểm tra</button>
+                <button id="next-spelling-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition hidden">Tiếp theo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="listening-quiz-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 transform scale-95 transition-transform">
+            <div id="listening-quiz-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400">🎧 Trắc nghiệm Nghe</h2>
+                    <button id="close-listening-quiz-btn" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+                </div>
+                <div class="text-center my-4">
+                    <button id="play-listening-quiz-sound-btn" class="text-5xl">🔊</button>
+                    <p class="text-sm text-slate-500 mt-2">Nghe và chọn từ đúng</p>
+                </div>
+                <div id="listening-quiz-options" class="grid grid-cols-2 gap-3 mt-6"></div>
+                <div class="mt-6 flex justify-between items-center">
+                    <p id="listening-quiz-progress" class="text-sm font-medium text-slate-500"></p>
+                    <button id="next-listening-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition hidden">Tiếp theo</button>
+                </div>
+            </div>
+            <div id="listening-quiz-results" class="hidden text-center">
+                <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-4">Kết quả</h2>
+                <p class="text-5xl font-bold text-slate-700 dark:text-slate-200 mb-2" id="listening-quiz-score"></p>
+                <p class="text-slate-600 dark:text-slate-300 mb-6" id="listening-quiz-feedback"></p>
+                <div class="flex justify-center items-center gap-4">
+                    <button id="close-listening-results-btn" class="px-6 py-2 bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-200 rounded-full font-semibold hover:bg-slate-300 dark:hover:bg-slate-500 transition">Đóng</button>
+                    <button id="restart-listening-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition">Làm lại</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIX: Progress Modal Layout -->
+    <div id="progress-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <!-- Make the inner container a flex column to control header and content -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl transform scale-95 transition-transform flex flex-col h-full max-h-[90vh]">
+            <!-- Header -->
+            <div class="flex-shrink-0 flex justify-between items-center p-4 md:p-6 border-b border-slate-200 dark:border-slate-700">
+                <h2 class="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400">Tiến độ của bạn</h2>
+                <button id="close-progress-btn" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-grow p-4 md:p-6 overflow-y-auto">
+                <div id="overview-section-modal" class="mb-8">
+                    <!-- Adjusted grid for better mobile stacking -->
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div class="lg:col-span-2 bg-slate-50 dark:bg-slate-700/50 p-6 rounded-xl flex flex-col justify-center">
+                            <h3 class="text-xl font-bold mb-4 text-center text-slate-700 dark:text-slate-200">Tổng quan Lộ trình</h3>
+                            <div id="stats" class="flex justify-around text-center">
+                                <div>
+                                    <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="total-words-stat">0</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Tổng số từ</p>
+                                </div>
+                                <div>
+                                    <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="total-topics-stat">0</p>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">Chủ đề</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-3 bg-slate-50 dark:bg-slate-700/50 p-6 rounded-xl">
+                            <h3 class="text-xl font-bold mb-4 text-center text-slate-700 dark:text-slate-200">Phân loại Từ vựng</h3>
+                            <div class="chart-container"><canvas id="topicChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-100">Thành tích</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
+                        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="progress-streak">0</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Chuỗi ngày học</p>
+                    </div>
+                    <div class="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg">
+                        <p class="text-3xl font-bold text-green-600 dark:text-green-400" id="progress-mastered">0</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Từ đã thuộc</p>
+                    </div>
+                    <div class="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded-lg">
+                        <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400" id="progress-review">0</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Từ cần ôn tập</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">Huy hiệu</h3>
+                    <div id="badges-container" class="flex flex-wrap gap-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="matching-quiz-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl p-6 transform scale-95 transition-transform">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Nối từ với nghĩa</h2>
+                <button id="close-matching-quiz-btn" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-2 gap-6 mt-6">
+                <div>
+                    <h3 class="font-semibold text-center mb-2">Từ vựng</h3>
+                    <ul id="matching-words-list" class="space-y-2">
+                        </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-center mb-2">Nghĩa</h3>
+                    <ul id="matching-meanings-list" class="space-y-2 min-h-[200px]">
+                        </ul>
+                </div>
+            </div>
+            <div id="matching-quiz-feedback" class="mt-4 text-center h-6 font-semibold"></div>
+            <div class="mt-6 flex justify-end">
+                <button id="check-matching-quiz-btn" class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition">Kiểm tra</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="fill-blank-modal"
+        class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div
+            class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 transform scale-95 transition-transform">
+            <div id="fill-blank-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400">Điền vào chỗ trống</h2>
+                    <button id="close-fill-blank-btn"
+                        class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+                </div>
+                <p id="fill-blank-sentence"
+                    class="text-lg text-center font-serif text-slate-800 dark:text-slate-100 my-6 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                </p>
+                <div id="fill-blank-options" class="grid grid-cols-2 gap-3 mt-6"></div>
+                <div class="mt-6 flex justify-between items-center">
+                    <p id="fill-blank-progress" class="text-sm font-medium text-slate-500"></p>
+                    <button id="next-fill-blank-btn"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition hidden">Tiếp
+                        theo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <button id="scroll-to-top-btn" title="Lên đầu trang"
+        class="fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 z-40">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+        </svg>
+    </button>
+
+    <div id="translation-popup">Đang dịch...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>
