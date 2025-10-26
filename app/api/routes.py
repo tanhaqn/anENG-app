@@ -3,7 +3,7 @@ import psycopg2.extras # Thư viện quan trọng
 from flask import Blueprint, jsonify, current_app, request
 from deep_translator import GoogleTranslator
 from datetime import datetime, timedelta
-from db import get_db_connection
+from app.db import get_db_connection
 
 # Blueprint này vẫn đúng
 bp = Blueprint('api', __name__, url_prefix='/api')
