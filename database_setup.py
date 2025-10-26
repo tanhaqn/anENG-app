@@ -1,42 +1,61 @@
-import sqlite3
+import psycopg2
 import os
+import sys
+
+def get_db_connection():
+    """Lấy kết nối đến database từ biến môi trường."""
+    # Lấy URL database từ biến môi trường mà Render cung cấp
+    db_url = os.environ.get('DATABASE_URL')
+    
+    if not db_url:
+        print("Lỗi: Biến môi trường DATABASE_URL chưa được thiết lập.", file=sys.stderr)
+        return None
+    
+    try:
+        # Kết nối đến database PostgreSQL
+        conn = psycopg2.connect(db_url)
+        return conn
+    except psycopg2.OperationalError as e:
+        print(f"Lỗi khi kết nối đến PostgreSQL: {e}", file=sys.stderr)
+        return None
 
 def setup_database():
     """
-    Tạo cơ sở dữ liệu và các bảng cần thiết (collections, topics, words)
-    với đầy đủ các cột, bao gồm cả cột is_visible cho collections.
+    Tạo các bảng (collections, topics, words, user_word_data) 
+    trên database PostgreSQL.
     """
-    instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
-    if not os.path.exists(instance_path):
-        print(f"Tạo thư mục instance tại: {instance_path}")
-        os.makedirs(instance_path)
+    conn = get_db_connection()
+    if conn is None:
+        print("Không thể kết nối đến database. Hủy bỏ cài đặt.", file=sys.stderr)
+        return
 
-    db_name = 'instance/vocabulary.db'
-    conn = None
+    cursor = None # Khởi tạo cursor bên ngoài để có thể đóng trong finally
     try:
-        conn = sqlite3.connect(db_name)
         cursor = conn.cursor()
+        print("Đang tạo bảng trên PostgreSQL...")
+        
+        # Xóa bảng cũ nếu tồn tại (để bạn có thể chạy lại file này nếu cần)
+        cursor.execute('DROP TABLE IF EXISTS user_word_data;')
+        cursor.execute('DROP TABLE IF EXISTS words;')
+        cursor.execute('DROP TABLE IF EXISTS topics;')
+        cursor.execute('DROP TABLE IF EXISTS collections;')
 
-        print("Đang tạo bảng...")
-        cursor.execute('DROP TABLE IF EXISTS words')
-        cursor.execute('DROP TABLE IF EXISTS topics')
-        cursor.execute('DROP TABLE IF EXISTS collections')
-
-        # Bảng mới để quản lý các bộ sưu tập
-        # is_visible: 1 = Hiển thị, 0 = Ẩn
+        # Bảng collections
+        # SERIAL PRIMARY KEY là tương đương với AUTOINCREMENT trong PostgreSQL
         cursor.execute('''
         CREATE TABLE collections (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_visible INTEGER NOT NULL DEFAULT 1
         )
         ''')
+        print("Tạo bảng 'collections' thành công.")
 
-        # Thêm collection_id làm khóa ngoại và ON DELETE CASCADE
+        # Bảng topics
         cursor.execute('''
         CREATE TABLE topics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             category TEXT NOT NULL,
             position INTEGER,
@@ -44,11 +63,12 @@ def setup_database():
             FOREIGN KEY (collection_id) REFERENCES collections (id) ON DELETE CASCADE
         )
         ''')
+        print("Tạo bảng 'topics' thành công.")
 
-        # Thêm ON DELETE CASCADE để tự động xóa các từ khi chủ đề bị xóa
+        # Bảng words
         cursor.execute('''
         CREATE TABLE words (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             topic_id INTEGER NOT NULL,
             word TEXT NOT NULL,
             ipa TEXT,
@@ -59,7 +79,9 @@ def setup_database():
             FOREIGN KEY (topic_id) REFERENCES topics (id) ON DELETE CASCADE
         )
         ''')
+        print("Tạo bảng 'words' thành công.")
 
+        # Bảng user_word_data
         cursor.execute('''
         CREATE TABLE user_word_data (
             word_id INTEGER PRIMARY KEY,
@@ -69,18 +91,25 @@ def setup_database():
             FOREIGN KEY (word_id) REFERENCES words (id) ON DELETE CASCADE
         )
         ''')
+        print("Tạo bảng 'user_word_data' thành công.")
         
+        # Commit tất cả thay đổi vào database
         conn.commit()
-        print("Các bảng 'collections', 'topics', và 'words', 'user_word_data' đã được tạo thành công.")
-        print(f"Cơ sở dữ liệu '{db_name}' đã sẵn sàng.")
+        print("Tất cả các bảng đã được tạo thành công trên PostgreSQL!")
 
-    except sqlite3.Error as e:
-        print(f"Đã xảy ra lỗi khi thiết lập cơ sở dữ liệu: {e}")
+    except (Exception, psycopg2.DatabaseError) as e:
+        print(f"Đã xảy ra lỗi khi thiết lập cơ sở dữ liệu: {e}", file=sys.stderr)
         if conn:
-            conn.rollback()
+            conn.rollback() # Hoàn tác nếu có lỗi
     finally:
+        # Luôn đóng cursor và connection
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()
+            print("Đã đóng kết nối database.")
 
 if __name__ == '__main__':
+    print("Bắt đầu chạy setup_database...")
     setup_database()
+    print("Kết thúc setup_database.")
