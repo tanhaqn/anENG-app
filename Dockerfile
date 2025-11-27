@@ -11,6 +11,5 @@ RUN pip install -r requirements.txt
 # Sao chép toàn bộ code của bạn vào thư mục làm việc
 COPY . .
 
-# Dùng Gunicorn để chạy ứng dụng web, trỏ đúng vào file run.py
-# Cổng (port) sẽ được Cloud Run tự động cung cấp qua biến môi trường $PORT
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "run:app"]
+# ✅ ĐÚNG (Dùng shell sh để dịch biến)
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT app:app"]
