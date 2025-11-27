@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # ✅ ĐÚNG (Dùng shell sh để dịch biến)
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT main:app"]
